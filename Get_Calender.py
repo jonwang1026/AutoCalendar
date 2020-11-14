@@ -2,11 +2,12 @@ from googleapiclient.discovery import build
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.auth.transport.requests import Request
 import auth_info
-import pickle
-import os.path
-import datetime
+import pickle, os.path, datetime
+from datetime import timedelta
 
 scope = ['https://www.googleapis.com/auth/calendar.readonly']
+
+
 def prompt_login():
     creds = None
     # The file token.pickle stores the  user's access and refresh tokens, and is
@@ -29,18 +30,23 @@ def prompt_login():
     service = build('calendar', 'v3', credentials=creds)
     return service
 
+
 def get_calender_events(service):
-    now = datetime.datetime.utcnow().isoformat() + 'Z'
+    event_dict = {}
+    now = datetime.datetime.utcnow()
+    now = now.replace(hour=0, minute=0, second=0)
+    tmr = now + timedelta(days=50)
+    now = now.isoformat() + 'Z'  # 'Z' indicates UTC time
+    tmr = tmr.isoformat() + 'Z'  # 'Z' indicates UTC time
+    print('Gathering your events...')
     events_result = service.events().list(calendarId='primary', timeMin=now,
-                                          maxResults=10, singleEvents=True,
+                                          timeMax=tmr,
+                                          maxResults=1000, singleEvents=True,
                                           orderBy='startTime').execute()
     events = events_result.get('items', [])
     if not events:
         print('No upcoming events found.')
     for event in events:
-        start = event['start'].get('dateTime', event['start'].get('date'))
-        print(start, event['summary'])
-
-if __name__ == '__main__':
-    get_service = prompt_login()
-    get_calender_events(get_service)
+        start = event['start'].get('dateTime', event['start'].get('date'), )
+        event_dict[event['summary']] = start
+    return event_dict
